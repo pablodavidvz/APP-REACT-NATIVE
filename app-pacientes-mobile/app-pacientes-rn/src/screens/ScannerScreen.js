@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePatient } from '../contexts/PatientContext';
+import patientService from '../services/patientService';
 
 export default function ScannerScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [checking, setChecking] = useState(false);
   const { colors } = useTheme();
   const { setPatient } = usePatient();
 
@@ -18,20 +20,18 @@ export default function ScannerScreen({ navigation }) {
 
   const parsePDF417Data = (data) => {
     try {
-      // El DNI argentino en formato PDF417 viene con @ como separador
       const parts = data.split('@');
       
       if (parts.length < 8) {
         throw new Error('Formato de DNI inválido');
       }
 
-      // Extraer datos del DNI argentino
       const patientData = {
         dni: parts[4]?.trim() || '',
         nombre: parts[2]?.trim() || '',
         apellido: parts[1]?.trim() || '',
         sexo: parts[3]?.trim() || '',
-        fechaNacimiento: parts[6]?.trim() || '',
+        fecnac: parts[6]?.trim() || '',
         numeroTramite: parts[0]?.trim() || '',
       };
 
@@ -42,10 +42,87 @@ export default function ScannerScreen({ navigation }) {
     }
   };
 
+  // ✅ VERIFICAR SI EL PACIENTE YA EXISTE
+  const checkIfPatientExists = async (patientData) => {
+    setChecking(true);
+    
+    try {
+      console.log('🔍 Verificando si el paciente existe...');
+      
+      // Verificar por DNI de forma simple
+      const response = await patientService.checkPatientByDNI(patientData.dni);
+
+      setChecking(false);
+
+      if (response.exists && response.patient) {
+        // ✅ PACIENTE YA EXISTE - INICIAR SESIÓN AUTOMÁTICAMENTE
+        console.log('✅ Paciente encontrado, iniciando sesión...');
+        
+        await setPatient(response.patient);
+        
+        Alert.alert(
+          '¡Bienvenido!',
+          `Hola ${response.patient.nombre} ${response.patient.apellido}`,
+          [
+            {
+              text: 'Continuar',
+              onPress: () => {
+                setScanned(false);
+                navigation.navigate('Home');
+              }
+            }
+          ]
+        );
+      } else {
+        // ❌ PACIENTE NO EXISTE - IR AL REGISTRO
+        console.log('❌ Paciente no encontrado, ir al registro');
+        
+        Alert.alert(
+          'DNI Escaneado',
+          `Nombre: ${patientData.nombre} ${patientData.apellido}\nDNI: ${patientData.dni}\n\nNo está registrado. ¿Desea registrarse?`,
+          [
+            { 
+              text: 'Cancelar', 
+              onPress: () => setScanned(false), 
+              style: 'cancel' 
+            },
+            {
+              text: 'Registrarse',
+              onPress: () => {
+                navigation.navigate('Register', { scannedData: patientData });
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      setChecking(false);
+      console.error('❌ Error al verificar paciente:', error);
+      
+      // Si hay error en la verificación, ir al registro
+      Alert.alert(
+        'DNI Escaneado',
+        `Nombre: ${patientData.nombre} ${patientData.apellido}\nDNI: ${patientData.dni}`,
+        [
+          { 
+            text: 'Cancelar', 
+            onPress: () => setScanned(false), 
+            style: 'cancel' 
+          },
+          {
+            text: 'Continuar',
+            onPress: () => {
+              navigation.navigate('Register', { scannedData: patientData });
+            },
+          },
+        ]
+      );
+    }
+  };
+
   const handleBarCodeScanned = ({ type, data }) => {
     setScanned(true);
 
-    // Verificar que sea un código PDF417 (formato del DNI argentino)
     if (type !== 'pdf417' && type !== 256) {
       Alert.alert(
         'Código inválido',
@@ -66,19 +143,8 @@ export default function ScannerScreen({ navigation }) {
       return;
     }
 
-    Alert.alert(
-      'DNI Escaneado',
-      `Nombre: ${patientData.nombre} ${patientData.apellido}\nDNI: ${patientData.dni}`,
-      [
-        { text: 'Cancelar', onPress: () => setScanned(false), style: 'cancel' },
-        {
-          text: 'Continuar Registro',
-          onPress: () => {
-            navigation.navigate('Register', { scannedData: patientData });
-          },
-        },
-      ]
-    );
+    // ✅ VERIFICAR SI EL PACIENTE EXISTE
+    checkIfPatientExists(patientData);
   };
 
   if (!permission) {
@@ -125,10 +191,17 @@ export default function ScannerScreen({ navigation }) {
           <Text style={styles.instructions}>
             Coloque el código de barras del DNI dentro del marco
           </Text>
+          
+          {checking && (
+            <View style={styles.checkingContainer}>
+              <ActivityIndicator size="large" color="#fff" />
+              <Text style={styles.checkingText}>Verificando paciente...</Text>
+            </View>
+          )}
         </View>
       </CameraView>
 
-      {scanned && (
+      {scanned && !checking && (
         <TouchableOpacity
           style={[styles.rescanButton, { backgroundColor: colors.primary }]}
           onPress={() => setScanned(false)}
@@ -198,6 +271,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     paddingHorizontal: 20,
+  },
+  checkingContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+  },
+  checkingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 10,
   },
   message: {
     textAlign: 'center',

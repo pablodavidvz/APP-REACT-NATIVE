@@ -1,206 +1,423 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePatient } from '../contexts/PatientContext';
+import NavBar from '../components/NavBar';
 import patientService from '../services/patientService';
 
-export default function MedicationSearchScreen() {
+export default function MedicationSearchScreen({ navigation }) {
   const { colors } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { patient } = usePatient();
+  const [searchTerm, setSearchTerm] = useState('');
   const [medications, setMedications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      return;
-    }
+    if (!searchTerm.trim()) return;
 
     setLoading(true);
     setSearched(true);
     try {
-      const results = await patientService.searchMedication(searchQuery);
-      setMedications(results || []);
+      const result = await patientService.searchMedication(searchTerm);
+      setMedications(result.results || []);
     } catch (error) {
-      console.error('Error buscando medicamentos:', error);
-      // Si falla la API, mostrar datos de ejemplo
-      setMedications([
-        {
-          id: 1,
-          nombre: 'Ibuprofeno 600mg',
-          laboratorio: 'Bayer',
-          presentacion: 'Comprimidos x 30',
-          precio: '$2.500',
-          requiereReceta: false,
-        },
-        {
-          id: 2,
-          nombre: 'Amoxicilina 500mg',
-          laboratorio: 'Roemmers',
-          presentacion: 'Cápsulas x 16',
-          precio: '$3.200',
-          requiereReceta: true,
-        },
-        {
-          id: 3,
-          nombre: 'Paracetamol 1g',
-          laboratorio: 'Pfizer',
-          presentacion: 'Comprimidos x 20',
-          precio: '$1.800',
-          requiereReceta: false,
-        },
-      ]);
+      console.error('Error searching medications:', error);
+      setMedications([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS'
+    }).format(price);
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View className="p-4">
-        {/* Buscador */}
-        <View className="mb-4">
-          <Text className="text-xl font-bold mb-3" style={{ color: colors.text }}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <NavBar navigation={navigation} />
+      
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={[styles.iconCircle, { backgroundColor: '#EC489920' }]}>
+            <Ionicons name="search" size={32} color="#EC4899" />
+          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
             Buscar Medicamentos
           </Text>
-          
-          <View className="flex-row space-x-2">
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Ej: Ibuprofeno, Amoxicilina..."
-              placeholderTextColor={colors.text + '80'}
-              className="flex-1 p-3 rounded-lg"
-              style={{ 
-                backgroundColor: colors.card, 
-                color: colors.text, 
-                borderWidth: 1, 
-                borderColor: colors.border 
-              }}
-              onSubmitEditing={handleSearch}
-            />
-            <TouchableOpacity
-              onPress={handleSearch}
-              disabled={loading}
-              className="px-6 rounded-lg items-center justify-center"
-              style={{ backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-semibold">🔍</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Consultá el estado de tus medicamentos
+          </Text>
         </View>
 
-        {/* Información de búsqueda */}
-        {!searched && (
-          <View className="items-center py-12">
-            <Text className="text-6xl mb-4">💊</Text>
-            <Text style={{ color: colors.text, fontSize: 16, textAlign: 'center' }}>
-              Ingresa el nombre de un medicamento{'\n'}para buscar en nuestra base de datos
-            </Text>
+        {/* Patient Info */}
+        {patient && (
+          <View style={[styles.patientCard, { backgroundColor: colors.card }]}>
+            <View style={styles.patientHeader}>
+              <Ionicons name="person-circle" size={24} color={colors.primary} />
+              <View style={styles.patientInfo}>
+                <Text style={[styles.patientName, { color: colors.text }]}>
+                  {patient.nombre} {patient.apellido}
+                </Text>
+                <Text style={[styles.patientDni, { color: colors.textSecondary }]}>
+                  DNI: {patient.dni}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
-      </View>
 
-      {/* Resultados */}
-      {searched && (
-        <ScrollView style={{ flex: 1 }} className="px-4">
-          {loading ? (
-            <View className="items-center py-12">
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text className="mt-4" style={{ color: colors.text }}>
-                Buscando medicamentos...
-              </Text>
-            </View>
-          ) : medications.length === 0 ? (
-            <View className="items-center py-12">
-              <Text className="text-5xl mb-4">🔍</Text>
-              <Text style={{ color: colors.text, fontSize: 16, textAlign: 'center' }}>
-                No se encontraron medicamentos{'\n'}con ese nombre
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  setSearched(false);
-                  setMedications([]);
-                }}
-                className="mt-4 px-6 py-3 rounded-lg"
-                style={{ backgroundColor: colors.primary }}
-              >
-                <Text className="text-white font-semibold">Nueva Búsqueda</Text>
+        {/* Search Box */}
+        <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Ej: Ibuprofeno, Amoxicilina..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              onSubmitEditing={handleSearch}
+            />
+            {searchTerm.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchTerm('')}>
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <Text className="mb-3" style={{ color: colors.text, opacity: 0.7 }}>
-                Se encontraron {medications.length} resultados
-              </Text>
-              
-              {medications.map((med) => (
-                <View
-                  key={med.id}
-                  className="p-4 rounded-lg mb-3"
-                  style={{ 
-                    backgroundColor: colors.card, 
-                    borderWidth: 1, 
-                    borderColor: colors.border 
-                  }}
-                >
-                  <View className="flex-row justify-between items-start mb-3">
-                    <View className="flex-1">
-                      <Text className="text-lg font-bold mb-1" style={{ color: colors.text }}>
-                        {med.nombre}
-                      </Text>
-                      <Text style={{ color: colors.text, opacity: 0.7, fontSize: 13 }}>
-                        🏭 {med.laboratorio}
-                      </Text>
-                      <Text style={{ color: colors.text, opacity: 0.7, fontSize: 13 }}>
-                        📦 {med.presentacion}
-                      </Text>
-                    </View>
+            )}
+          </View>
+          <TouchableOpacity
+            style={[styles.searchButton, { backgroundColor: colors.primary }]}
+            onPress={handleSearch}
+            disabled={loading || !searchTerm.trim()}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="search" size={20} color="#fff" />
+                <Text style={styles.searchButtonText}>Buscar</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Info Box */}
+        <View style={[styles.infoBox, { backgroundColor: '#3B82F620', borderColor: '#3B82F640' }]}>
+          <Ionicons name="information-circle" size={24} color="#3B82F6" />
+          <Text style={[styles.infoText, { color: colors.text }]}>
+            Ingresá el nombre del medicamento que buscás para ver su disponibilidad y precio
+          </Text>
+        </View>
+
+        {/* Results */}
+        {!loading && searched && medications.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Resultados ({medications.length})
+            </Text>
+            {medications.map((med, index) => (
+              <View
+                key={index}
+                style={[styles.medicationCard, { backgroundColor: colors.card }]}
+              >
+                <View style={styles.medicationHeader}>
+                  <View style={[styles.medicationIcon, { backgroundColor: '#EC489920' }]}>
+                    <Ionicons name="medical" size={24} color="#EC4899" />
+                  </View>
+                  <View style={styles.medicationTitleContainer}>
+                    <Text style={[styles.medicationName, { color: colors.text }]}>
+                      {med.nombre}
+                    </Text>
                     {med.requiereReceta && (
-                      <View
-                        className="px-3 py-1 rounded-full"
-                        style={{ backgroundColor: '#f59e0b' }}
-                      >
-                        <Text className="text-white text-xs font-semibold">
-                          Receta
-                        </Text>
+                      <View style={styles.prescriptionBadge}>
+                        <Ionicons name="document-text" size={12} color="#F59E0B" />
+                        <Text style={styles.prescriptionText}>Requiere Receta</Text>
                       </View>
                     )}
                   </View>
+                </View>
 
-                  <View className="flex-row justify-between items-center">
-                    <Text className="text-2xl font-bold" style={{ color: colors.primary }}>
-                      {med.precio}
+                <View style={styles.medicationDetails}>
+                  <View style={styles.medicationDetail}>
+                    <Ionicons name="business" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.medicationDetailText, { color: colors.textSecondary }]}>
+                      {med.laboratorio}
                     </Text>
-                    <TouchableOpacity
-                      className="px-6 py-2 rounded-lg"
-                      style={{ backgroundColor: colors.primary }}
-                    >
-                      <Text className="text-white font-semibold">Ver Detalle</Text>
-                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.medicationDetail}>
+                    <Ionicons name="cube" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.medicationDetailText, { color: colors.textSecondary }]}>
+                      {med.presentacion}
+                    </Text>
+                  </View>
+
+                  <View style={styles.medicationDetail}>
+                    <Ionicons name="cash" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.medicationDetailText, { color: colors.text, fontWeight: '600' }]}>
+                      {formatPrice(med.precio)}
+                    </Text>
                   </View>
                 </View>
-              ))}
+              </View>
+            ))}
+          </View>
+        )}
 
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  setSearched(false);
-                  setMedications([]);
-                }}
-                className="mt-4 mb-6 p-4 rounded-lg items-center"
-                style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Text style={{ color: colors.text, fontWeight: '600' }}>🔄 Nueva Búsqueda</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </ScrollView>
-      )}
+        {/* Empty State */}
+        {!loading && searched && medications.length === 0 && (
+          <View style={styles.emptyState}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.card }]}>
+              <Ionicons name="search" size={48} color={colors.textSecondary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No se encontraron medicamentos
+            </Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Intentá buscar con otro término
+            </Text>
+          </View>
+        )}
+
+        {/* Initial State */}
+        {!searched && !loading && (
+          <View style={styles.initialState}>
+            <View style={[styles.initialIcon, { backgroundColor: colors.card }]}>
+              <Ionicons name="medical" size={64} color="#EC4899" />
+            </View>
+            <Text style={[styles.initialTitle, { color: colors.text }]}>
+              Buscá tu medicamento
+            </Text>
+            <Text style={[styles.initialText, { color: colors.textSecondary }]}>
+              Usá el buscador de arriba para encontrar información sobre medicamentos
+            </Text>
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  patientCard: {
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  patientHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  patientInfo: {
+    flex: 1,
+  },
+  patientName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  patientDni: {
+    fontSize: 14,
+  },
+  searchBox: {
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 8,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  infoBox: {
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  section: {
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  medicationCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  medicationHeader: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  medicationIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  medicationTitleContainer: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  prescriptionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  prescriptionText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
+  medicationDetails: {
+    gap: 8,
+  },
+  medicationDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  medicationDetailText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  initialState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  initialIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  initialTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  initialText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+});

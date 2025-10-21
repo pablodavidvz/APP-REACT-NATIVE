@@ -15,13 +15,21 @@ export default function RegisterScreen({ navigation, route }) {
     dni: '',
     nombre: '',
     apellido: '',
-    fechaNacimiento: '',
+    fecnac: '',
     sexo: '',
     telefono: '',
     email: '',
-    direccion: '',
-    obraSocial: '',
-    numeroAfiliado: '',
+    calle: '',
+    numero: '',
+    piso: '',
+    departamento: '',
+    ciudad: '',
+    provincia: '',
+    cpostal: '',
+    idobrasocial: '',
+    numeroafiliado: '',
+    peso: '',
+    talla: ''
   });
 
   // Si vienen datos escaneados, pre-llenar el formulario
@@ -33,7 +41,7 @@ export default function RegisterScreen({ navigation, route }) {
         dni: scanned.dni || '',
         nombre: scanned.nombre || '',
         apellido: scanned.apellido || '',
-        fechaNacimiento: scanned.fechaNacimiento || '',
+        fecnac: scanned.fecnac || scanned.fechaNacimiento || '',
         sexo: scanned.sexo || '',
       }));
     }
@@ -44,7 +52,7 @@ export default function RegisterScreen({ navigation, route }) {
   };
 
   const validateStep1 = () => {
-    if (!formData.dni || !formData.nombre || !formData.apellido || !formData.fechaNacimiento) {
+    if (!formData.dni || !formData.nombre || !formData.apellido || !formData.fecnac) {
       Alert.alert('Error', 'Por favor complete todos los campos obligatorios del Paso 1');
       return false;
     }
@@ -79,7 +87,48 @@ export default function RegisterScreen({ navigation, route }) {
         ]
       );
     } catch (error) {
-      Alert.alert('Error', error.message || 'No se pudo registrar el paciente');
+      setLoading(false);
+      
+      // ✅ SI EL PACIENTE YA EXISTE (409), REDIRIGIR AL HOME
+      if (error.message && (error.message.includes('409') || error.message.toLowerCase().includes('ya existe'))) {
+        console.log('⚠️ Paciente ya registrado, redirigiendo al Home...');
+        
+        // Guardar datos básicos al contexto
+        await setPatient({
+          dni: formData.dni,
+          nombre: formData.nombre,
+          apellido: formData.apellido,
+          sexo: formData.sexo,
+          fecnac: formData.fecnac
+        });
+        
+        Alert.alert(
+          'Paciente Registrado',
+          `${formData.nombre} ${formData.apellido} ya tiene una cuenta en el sistema.`,
+          [
+            {
+              text: 'Ir al Inicio',
+              onPress: () => navigation.navigate('Home')
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Otros errores
+      let errorMessage = 'No se pudo registrar el paciente';
+      
+      if (error.message) {
+        if (error.message.includes('400')) {
+          errorMessage = 'Faltan datos requeridos o hay datos incorrectos';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Error en el servidor. Intente nuevamente';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert('Error de Registro', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -157,8 +206,8 @@ export default function RegisterScreen({ navigation, route }) {
             <View className="mb-4">
               <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Fecha de Nacimiento *</Text>
               <TextInput
-                value={formData.fechaNacimiento}
-                onChangeText={(text) => updateField('fechaNacimiento', text)}
+                value={formData.fecnac}
+                onChangeText={(text) => updateField('fecnac', text)}
                 placeholder="DD/MM/AAAA"
                 placeholderTextColor={colors.text + '80'}
                 className="p-3 rounded-lg"
@@ -167,7 +216,7 @@ export default function RegisterScreen({ navigation, route }) {
             </View>
 
             <View className="mb-6">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Sexo</Text>
+              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Sexo *</Text>
               <View className="flex-row space-x-2">
                 <TouchableOpacity
                   onPress={() => updateField('sexo', 'M')}
@@ -233,11 +282,36 @@ export default function RegisterScreen({ navigation, route }) {
             </View>
 
             <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Dirección</Text>
+              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Calle</Text>
               <TextInput
-                value={formData.direccion}
-                onChangeText={(text) => updateField('direccion', text)}
-                placeholder="Calle, número, ciudad"
+                value={formData.calle}
+                onChangeText={(text) => updateField('calle', text)}
+                placeholder="Nombre de la calle"
+                placeholderTextColor={colors.text + '80'}
+                className="p-3 rounded-lg"
+                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Número</Text>
+              <TextInput
+                value={formData.numero}
+                onChangeText={(text) => updateField('numero', text)}
+                placeholder="Número"
+                placeholderTextColor={colors.text + '80'}
+                keyboardType="numeric"
+                className="p-3 rounded-lg"
+                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Ciudad</Text>
+              <TextInput
+                value={formData.ciudad}
+                onChangeText={(text) => updateField('ciudad', text)}
+                placeholder="Ciudad"
                 placeholderTextColor={colors.text + '80'}
                 className="p-3 rounded-lg"
                 style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
@@ -247,8 +321,8 @@ export default function RegisterScreen({ navigation, route }) {
             <View className="mb-4">
               <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Obra Social</Text>
               <TextInput
-                value={formData.obraSocial}
-                onChangeText={(text) => updateField('obraSocial', text)}
+                value={formData.idobrasocial}
+                onChangeText={(text) => updateField('idobrasocial', text)}
                 placeholder="Nombre de la obra social"
                 placeholderTextColor={colors.text + '80'}
                 className="p-3 rounded-lg"
@@ -259,10 +333,11 @@ export default function RegisterScreen({ navigation, route }) {
             <View className="mb-6">
               <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Número de Afiliado</Text>
               <TextInput
-                value={formData.numeroAfiliado}
-                onChangeText={(text) => updateField('numeroAfiliado', text)}
-                placeholder="Número de afiliado"
+                value={formData.numeroafiliado}
+                onChangeText={(text) => updateField('numeroafiliado', text)}
+                placeholder="Número de afiliado a la obra social"
                 placeholderTextColor={colors.text + '80'}
+                keyboardType="numeric"
                 className="p-3 rounded-lg"
                 style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
               />
