@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePatient } from '../contexts/PatientContext';
 import patientService from '../services/patientService';
@@ -10,29 +12,12 @@ export default function RegisterScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
-  // Datos del formulario
   const [formData, setFormData] = useState({
-    dni: '',
-    nombre: '',
-    apellido: '',
-    fecnac: '',
-    sexo: '',
-    telefono: '',
-    email: '',
-    calle: '',
-    numero: '',
-    piso: '',
-    departamento: '',
-    ciudad: '',
-    provincia: '',
-    cpostal: '',
-    idobrasocial: '',
-    numeroafiliado: '',
-    peso: '',
-    talla: ''
+    dni: '', nombre: '', apellido: '', fecnac: '', sexo: '',
+    telefono: '', email: '', calle: '', numero: '', ciudad: '',
+    idobrasocial: '', numeroafiliado: ''
   });
 
-  // Si vienen datos escaneados, pre-llenar el formulario
   useEffect(() => {
     if (route.params?.scannedData) {
       const scanned = route.params.scannedData;
@@ -53,16 +38,14 @@ export default function RegisterScreen({ navigation, route }) {
 
   const validateStep1 = () => {
     if (!formData.dni || !formData.nombre || !formData.apellido || !formData.fecnac) {
-      Alert.alert('Error', 'Por favor complete todos los campos obligatorios del Paso 1');
+      Alert.alert('Error', 'Por favor complete todos los campos obligatorios');
       return false;
     }
     return true;
   };
 
   const handleNextStep = () => {
-    if (validateStep1()) {
-      setStep(2);
-    }
+    if (validateStep1()) setStep(2);
   };
 
   const handleSubmit = async () => {
@@ -70,304 +53,153 @@ export default function RegisterScreen({ navigation, route }) {
       Alert.alert('Error', 'Por favor complete teléfono y email');
       return;
     }
-
     setLoading(true);
     try {
       const result = await patientService.register(formData);
       await setPatient(result.patient || formData);
-      
-      Alert.alert(
-        'Registro Exitoso',
-        'El paciente ha sido registrado correctamente',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Home'),
-          },
-        ]
+      Alert.alert('Registro Exitoso', 'El paciente ha sido registrado correctamente',
+        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
       );
     } catch (error) {
       setLoading(false);
-      
-      // ✅ SI EL PACIENTE YA EXISTE (409), REDIRIGIR AL HOME
       if (error.message && (error.message.includes('409') || error.message.toLowerCase().includes('ya existe'))) {
-        console.log('⚠️ Paciente ya registrado, redirigiendo al Home...');
-        
-        // Guardar datos básicos al contexto
-        await setPatient({
-          dni: formData.dni,
-          nombre: formData.nombre,
-          apellido: formData.apellido,
-          sexo: formData.sexo,
-          fecnac: formData.fecnac
-        });
-        
-        Alert.alert(
-          'Paciente Registrado',
-          `${formData.nombre} ${formData.apellido} ya tiene una cuenta en el sistema.`,
-          [
-            {
-              text: 'Ir al Inicio',
-              onPress: () => navigation.navigate('Home')
-            }
-          ]
+        await setPatient({ dni: formData.dni, nombre: formData.nombre, apellido: formData.apellido, sexo: formData.sexo, fecnac: formData.fecnac });
+        Alert.alert('Paciente Registrado', `${formData.nombre} ${formData.apellido} ya tiene una cuenta en el sistema.`,
+          [{ text: 'Ir al Inicio', onPress: () => navigation.navigate('Home') }]
         );
         return;
       }
-      
-      // Otros errores
-      let errorMessage = 'No se pudo registrar el paciente';
-      
-      if (error.message) {
-        if (error.message.includes('400')) {
-          errorMessage = 'Faltan datos requeridos o hay datos incorrectos';
-        } else if (error.message.includes('500')) {
-          errorMessage = 'Error en el servidor. Intente nuevamente';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      Alert.alert('Error de Registro', errorMessage);
+      Alert.alert('Error de Registro', error.message || 'No se pudo registrar el paciente');
     } finally {
       setLoading(false);
     }
   };
 
+  const renderInput = (label, field, placeholder, keyboardType = 'default', required = false) => (
+    <View style={styles.inputContainer}>
+      <Text style={[styles.label, { color: colors.text }]}>{label}{required && ' *'}</Text>
+      <TextInput
+        value={formData[field]}
+        onChangeText={(text) => updateField(field, text)}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textSecondary}
+        keyboardType={keyboardType}
+        autoCapitalize={field === 'email' ? 'none' : 'sentences'}
+        style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+      />
+    </View>
+  );
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View className="p-4">
-        {/* Indicador de pasos */}
-        <View className="flex-row justify-center mb-6">
-          <View className="flex-row items-center">
-            <View
-              className="w-10 h-10 rounded-full items-center justify-center"
-              style={{ backgroundColor: step === 1 ? colors.primary : colors.card }}
-            >
-              <Text style={{ color: step === 1 ? '#fff' : colors.text }}>1</Text>
-            </View>
-            <View
-              className="w-16 h-1"
-              style={{ backgroundColor: step === 2 ? colors.primary : colors.border }}
-            />
-            <View
-              className="w-10 h-10 rounded-full items-center justify-center"
-              style={{ backgroundColor: step === 2 ? colors.primary : colors.card }}
-            >
-              <Text style={{ color: step === 2 ? '#fff' : colors.text }}>2</Text>
-            </View>
-          </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={['#1E6091', '#0A4B78']} style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Registrar Paciente</Text>
+        <View style={{ width: 24 }} />
+      </LinearGradient>
+
+      <View style={styles.stepsContainer}>
+        <View style={[styles.stepCircle, step >= 1 && styles.stepActive]}>
+          <Text style={[styles.stepText, step >= 1 && styles.stepTextActive]}>1</Text>
         </View>
+        <View style={[styles.stepLine, step >= 2 && styles.stepLineActive]} />
+        <View style={[styles.stepCircle, step >= 2 && styles.stepActive]}>
+          <Text style={[styles.stepText, step >= 2 && styles.stepTextActive]}>2</Text>
+        </View>
+      </View>
 
-        <Text className="text-2xl font-bold mb-6" style={{ color: colors.text }}>
-          {step === 1 ? 'Datos Personales' : 'Datos de Contacto'}
-        </Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        {step === 1 ? 'Datos Personales' : 'Datos de Contacto'}
+      </Text>
 
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {step === 1 ? (
-          // PASO 1: Datos personales
-          <View>
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>DNI *</Text>
-              <TextInput
-                value={formData.dni}
-                onChangeText={(text) => updateField('dni', text)}
-                placeholder="Ingrese DNI"
-                placeholderTextColor={colors.text + '80'}
-                keyboardType="numeric"
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Nombre *</Text>
-              <TextInput
-                value={formData.nombre}
-                onChangeText={(text) => updateField('nombre', text)}
-                placeholder="Ingrese nombre"
-                placeholderTextColor={colors.text + '80'}
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Apellido *</Text>
-              <TextInput
-                value={formData.apellido}
-                onChangeText={(text) => updateField('apellido', text)}
-                placeholder="Ingrese apellido"
-                placeholderTextColor={colors.text + '80'}
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Fecha de Nacimiento *</Text>
-              <TextInput
-                value={formData.fecnac}
-                onChangeText={(text) => updateField('fecnac', text)}
-                placeholder="DD/MM/AAAA"
-                placeholderTextColor={colors.text + '80'}
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-6">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Sexo *</Text>
-              <View className="flex-row space-x-2">
+          <View style={styles.formContainer}>
+            {renderInput('DNI', 'dni', 'Ingrese DNI', 'numeric', true)}
+            {renderInput('Nombre', 'nombre', 'Ingrese nombre', 'default', true)}
+            {renderInput('Apellido', 'apellido', 'Ingrese apellido', 'default', true)}
+            {renderInput('Fecha de Nacimiento', 'fecnac', 'DD/MM/AAAA', 'default', true)}
+            
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.text }]}>Sexo *</Text>
+              <View style={styles.sexContainer}>
                 <TouchableOpacity
                   onPress={() => updateField('sexo', 'M')}
-                  className="flex-1 p-3 rounded-lg items-center"
-                  style={{ 
-                    backgroundColor: formData.sexo === 'M' ? colors.primary : colors.card,
-                    borderWidth: 1,
-                    borderColor: colors.border 
-                  }}
+                  style={[styles.sexButton, { backgroundColor: formData.sexo === 'M' ? '#1E6091' : colors.card, borderColor: colors.border }]}
                 >
-                  <Text style={{ color: formData.sexo === 'M' ? '#fff' : colors.text }}>Masculino</Text>
+                  <Text style={{ color: formData.sexo === 'M' ? '#fff' : colors.text, fontWeight: '600' }}>Masculino</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => updateField('sexo', 'F')}
-                  className="flex-1 p-3 rounded-lg items-center"
-                  style={{ 
-                    backgroundColor: formData.sexo === 'F' ? colors.primary : colors.card,
-                    borderWidth: 1,
-                    borderColor: colors.border 
-                  }}
+                  style={[styles.sexButton, { backgroundColor: formData.sexo === 'F' ? '#1E6091' : colors.card, borderColor: colors.border }]}
                 >
-                  <Text style={{ color: formData.sexo === 'F' ? '#fff' : colors.text }}>Femenino</Text>
+                  <Text style={{ color: formData.sexo === 'F' ? '#fff' : colors.text, fontWeight: '600' }}>Femenino</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <TouchableOpacity
-              onPress={handleNextStep}
-              className="p-4 rounded-lg items-center"
-              style={{ backgroundColor: colors.primary }}
-            >
-              <Text className="text-white font-semibold text-lg">Siguiente</Text>
+            <TouchableOpacity onPress={handleNextStep} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Siguiente</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
-          // PASO 2: Datos de contacto
-          <View>
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Teléfono *</Text>
-              <TextInput
-                value={formData.telefono}
-                onChangeText={(text) => updateField('telefono', text)}
-                placeholder="Ingrese teléfono"
-                placeholderTextColor={colors.text + '80'}
-                keyboardType="phone-pad"
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
+          <View style={styles.formContainer}>
+            {renderInput('Teléfono', 'telefono', 'Ingrese teléfono', 'phone-pad', true)}
+            {renderInput('Email', 'email', 'ejemplo@email.com', 'email-address', true)}
+            {renderInput('Calle', 'calle', 'Nombre de la calle')}
+            {renderInput('Número', 'numero', 'Número', 'numeric')}
+            {renderInput('Ciudad', 'ciudad', 'Ciudad')}
+            {renderInput('Obra Social', 'idobrasocial', 'Nombre de la obra social')}
+            {renderInput('Número de Afiliado', 'numeroafiliado', 'Número de afiliado', 'numeric')}
 
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Email *</Text>
-              <TextInput
-                value={formData.email}
-                onChangeText={(text) => updateField('email', text)}
-                placeholder="ejemplo@email.com"
-                placeholderTextColor={colors.text + '80'}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Calle</Text>
-              <TextInput
-                value={formData.calle}
-                onChangeText={(text) => updateField('calle', text)}
-                placeholder="Nombre de la calle"
-                placeholderTextColor={colors.text + '80'}
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Número</Text>
-              <TextInput
-                value={formData.numero}
-                onChangeText={(text) => updateField('numero', text)}
-                placeholder="Número"
-                placeholderTextColor={colors.text + '80'}
-                keyboardType="numeric"
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Ciudad</Text>
-              <TextInput
-                value={formData.ciudad}
-                onChangeText={(text) => updateField('ciudad', text)}
-                placeholder="Ciudad"
-                placeholderTextColor={colors.text + '80'}
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Obra Social</Text>
-              <TextInput
-                value={formData.idobrasocial}
-                onChangeText={(text) => updateField('idobrasocial', text)}
-                placeholder="Nombre de la obra social"
-                placeholderTextColor={colors.text + '80'}
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="mb-6">
-              <Text className="mb-2 font-semibold" style={{ color: colors.text }}>Número de Afiliado</Text>
-              <TextInput
-                value={formData.numeroafiliado}
-                onChangeText={(text) => updateField('numeroafiliado', text)}
-                placeholder="Número de afiliado a la obra social"
-                placeholderTextColor={colors.text + '80'}
-                keyboardType="numeric"
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: colors.card, color: colors.text, borderWidth: 1, borderColor: colors.border }}
-              />
-            </View>
-
-            <View className="flex-row space-x-2">
-              <TouchableOpacity
-                onPress={() => setStep(1)}
-                className="flex-1 p-4 rounded-lg items-center"
-                style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Text style={{ color: colors.text, fontWeight: '600' }}>Atrás</Text>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity onPress={() => setStep(1)} style={[styles.secondaryButton, { borderColor: colors.border }]}>
+                <Ionicons name="arrow-back" size={20} color={colors.text} />
+                <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Atrás</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={loading}
-                className="flex-1 p-4 rounded-lg items-center"
-                style={{ backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text className="text-white font-semibold text-lg">Registrar</Text>
+              <TouchableOpacity onPress={handleSubmit} disabled={loading} style={[styles.primaryButton, { flex: 1, opacity: loading ? 0.7 : 1 }]}>
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Text style={styles.primaryButtonText}>Registrar</Text>
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                  </>
                 )}
               </TouchableOpacity>
             </View>
           </View>
         )}
-      </View>
-    </ScrollView>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 },
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+  stepsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
+  stepCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  stepActive: { backgroundColor: '#1E6091' },
+  stepText: { fontSize: 16, fontWeight: '600', color: '#6B7280' },
+  stepTextActive: { color: '#fff' },
+  stepLine: { width: 60, height: 4, backgroundColor: '#E5E7EB', marginHorizontal: 8 },
+  stepLineActive: { backgroundColor: '#1E6091' },
+  sectionTitle: { fontSize: 24, fontWeight: 'bold', paddingHorizontal: 20, marginBottom: 16 },
+  scrollView: { flex: 1 },
+  formContainer: { paddingHorizontal: 20 },
+  inputContainer: { marginBottom: 16 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  input: { padding: 16, borderRadius: 12, fontSize: 16, borderWidth: 1 },
+  sexContainer: { flexDirection: 'row', gap: 12 },
+  sexButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
+  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E6091', padding: 16, borderRadius: 12, gap: 8, marginTop: 8 },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  secondaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12, borderWidth: 1, gap: 8 },
+  secondaryButtonText: { fontSize: 16, fontWeight: '600' },
+  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+});

@@ -18,6 +18,13 @@
       },
       "package": "com.altaluna.pacientes"
     },
-    "plugins": []
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "79fcdbfd-300b-4dd6-bb79-70750b459b1b"
+      }
+    }
   }
 }

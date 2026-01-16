@@ -1,39 +1,22 @@
 import React from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PatientProvider } from './src/contexts/PatientContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
-
-// Screens
-import RegisterScreen from './src/screens/RegisterScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import PrescriptionsScreen from './src/screens/PrescriptionsScreen';
-import CertificatesScreen from './src/screens/CertificatesScreen';
-import StudiesScreen from './src/screens/StudiesScreen';
-import MedicationSearchScreen from './src/screens/MedicationSearchScreen';
-
-const Stack = createNativeStackNavigator();
+import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <PatientProvider>
-        <NavigationContainer>
-          <Stack.Navigator 
-            initialRouteName="Register"
-            screenOptions={{ headerShown: false }}
-          >
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="Prescriptions" component={PrescriptionsScreen} />
-            <Stack.Screen name="Certificates" component={CertificatesScreen} />
-            <Stack.Screen name="Studies" component={StudiesScreen} />
-            <Stack.Screen name="MedicationSearch" component={MedicationSearchScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PatientProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <PatientProvider>
+          <NavigationContainer>
+            <StatusBar style="auto" />
+            <RootNavigator />
+          </NavigationContainer>
+        </PatientProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

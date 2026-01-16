@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// URL base de la API CON NGROK
-const API_URL = 'https://luanna-toothy-seclusively.ngrok-free.dev/app-pacientes-server/api';
+// URL base de la API - IP LOCAL
+const API_URL = 'http://192.168.0.8:8000/app-pacientes-server/api';
 
 // Configuración de axios
 const API = axios.create({
@@ -73,7 +73,7 @@ const patientService = {
     }
   },
 
-  // ✅ NUEVA FUNCIÓN: Verificar si existe por DNI (método simple)
+  // Verificar si existe por DNI (método simple)
   checkPatientByDNI: async (dni) => {
     try {
       console.log('🔍 Verificando DNI simple:', dni);
@@ -81,7 +81,6 @@ const patientService = {
       return response.data;
     } catch (error) {
       console.error('❌ Error al verificar DNI:', error);
-      // Si da error, asumir que no existe
       return { exists: false };
     }
   },
