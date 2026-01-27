@@ -11,6 +11,7 @@ import PrescriptionsScreen from '../screens/PrescriptionsScreen';
 import StudiesScreen from '../screens/StudiesScreen';
 import CertificatesScreen from '../screens/CertificatesScreen';
 import MedicationSearchScreen from '../screens/MedicationSearchScreen';
+import TutorScreen from '../screens/TutorScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -71,6 +72,11 @@ export default function RootNavigator() {
         name="MedicationSearch" 
         component={MedicationSearchScreen}
         options={{ title: 'Buscar Medicamentos' }}
+      />
+      <Stack.Screen 
+        name="Tutor" 
+        component={TutorScreen}
+        options={{ title: 'Módulo Tutores' }}
       />
     </Stack.Navigator>
   );

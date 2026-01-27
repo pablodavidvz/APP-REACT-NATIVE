@@ -46,6 +46,13 @@ export default function HomeScreen({ navigation }) {
       color: '#EC4899',
       route: 'MedicationSearch'
     },
+    {
+      icon: 'people',
+      title: 'Módulo Tutores',
+      description: 'Gestión para familiares y cuidadores de pacientes',
+      color: '#F97316',
+      route: 'Tutor'
+    },
   ];
 
   return (

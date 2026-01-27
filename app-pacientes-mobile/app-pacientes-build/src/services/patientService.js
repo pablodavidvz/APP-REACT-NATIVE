@@ -107,6 +107,45 @@ const patientService = {
     }
   },
 
+  // Obtener obras sociales
+  getObrasSociales: async () => {
+    try {
+      console.log('🏥 Obteniendo obras sociales...');
+      const response = await API.get('/obras-sociales');
+      // El backend devuelve { success, count, data: [...] }
+      const obrasSociales = response.data.data || response.data || [];
+      console.log(`✅ Se obtuvieron ${obrasSociales.length} obras sociales`);
+      // Mapear campos para compatibilidad (sigla -> nombre display)
+      return obrasSociales.map(os => ({
+        id: os.id,
+        nombre: os.descripcion || os.nombre,
+        sigla: os.sigla,
+        estado: os.estado
+      }));
+    } catch (error) {
+      console.error('❌ Error al obtener obras sociales:', error);
+      return [];
+    }
+  },
+
+  // Buscar obras sociales por término
+  searchObrasSociales: async (searchTerm) => {
+    try {
+      console.log('🔍 Buscando obras sociales:', searchTerm);
+      const response = await API.get(`/obras-sociales/search?q=${encodeURIComponent(searchTerm)}`);
+      const obrasSociales = response.data.data || response.data || [];
+      return obrasSociales.map(os => ({
+        id: os.id,
+        nombre: os.descripcion || os.nombre,
+        sigla: os.sigla,
+        estado: os.estado
+      }));
+    } catch (error) {
+      console.error('❌ Error al buscar obras sociales:', error);
+      return [];
+    }
+  },
+
   // Obtener recetas por DNI
   getPrescriptionsByDNI: async (dni) => {
     try {

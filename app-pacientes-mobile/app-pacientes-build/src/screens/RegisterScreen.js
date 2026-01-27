@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, StyleSheet, Modal, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
@@ -11,6 +11,13 @@ export default function RegisterScreen({ navigation, route }) {
   const { setPatient } = usePatient();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+
+  // Estados para obras sociales
+  const [obrasSociales, setObrasSociales] = useState([]);
+  const [loadingObrasSociales, setLoadingObrasSociales] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [searchObraSocial, setSearchObraSocial] = useState('');
+  const [selectedObraSocial, setSelectedObraSocial] = useState(null);
 
   const [formData, setFormData] = useState({
     dni: '', nombre: '', apellido: '', fecnac: '', sexo: '',
@@ -32,6 +39,25 @@ export default function RegisterScreen({ navigation, route }) {
     }
   }, [route.params]);
 
+  // Cargar obras sociales cuando se entra al paso 2
+  useEffect(() => {
+    if (step === 2 && obrasSociales.length === 0) {
+      loadObrasSociales();
+    }
+  }, [step]);
+
+  const loadObrasSociales = async () => {
+    setLoadingObrasSociales(true);
+    try {
+      const data = await patientService.getObrasSociales();
+      setObrasSociales(data);
+    } catch (error) {
+      console.error('Error cargando obras sociales:', error);
+    } finally {
+      setLoadingObrasSociales(false);
+    }
+  };
+
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -47,6 +73,18 @@ export default function RegisterScreen({ navigation, route }) {
   const handleNextStep = () => {
     if (validateStep1()) setStep(2);
   };
+
+  const handleSelectObraSocial = (obraSocial) => {
+    setSelectedObraSocial(obraSocial);
+    updateField('idobrasocial', obraSocial.id.toString());
+    setModalVisible(false);
+    setSearchObraSocial('');
+  };
+
+  const filteredObrasSociales = obrasSociales.filter(os => 
+    os.nombre.toLowerCase().includes(searchObraSocial.toLowerCase()) ||
+    (os.sigla && os.sigla.toLowerCase().includes(searchObraSocial.toLowerCase()))
+  );
 
   const handleSubmit = async () => {
     if (!formData.telefono || !formData.email) {
@@ -82,12 +120,114 @@ export default function RegisterScreen({ navigation, route }) {
         value={formData[field]}
         onChangeText={(text) => updateField(field, text)}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={colors.textSecondary || '#9CA3AF'}
         keyboardType={keyboardType}
         autoCapitalize={field === 'email' ? 'none' : 'sentences'}
         style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
       />
     </View>
+  );
+
+  const renderObraSocialSelector = () => (
+    <View style={styles.inputContainer}>
+      <Text style={[styles.label, { color: colors.text }]}>Obra Social</Text>
+      <TouchableOpacity
+        onPress={() => setModalVisible(true)}
+        style={[styles.selectorButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Text style={[styles.selectorText, { color: selectedObraSocial ? colors.text : (colors.textSecondary || '#9CA3AF') }]}>
+          {selectedObraSocial ? selectedObraSocial.nombre : 'Seleccionar obra social'}
+        </Text>
+        <Ionicons name="chevron-down" size={20} color={colors.text} />
+      </TouchableOpacity>
+      {selectedObraSocial && selectedObraSocial.sigla && (
+        <Text style={[styles.obraSocialSigla, { color: colors.primary }]}>
+          {selectedObraSocial.sigla}
+        </Text>
+      )}
+    </View>
+  );
+
+  const renderObraSocialModal = () => (
+    <Modal
+      visible={modalVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+          {/* Header del modal */}
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Seleccionar Obra Social</Text>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Buscador */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="search" size={20} color={colors.textSecondary || '#9CA3AF'} />
+            <TextInput
+              value={searchObraSocial}
+              onChangeText={setSearchObraSocial}
+              placeholder="Buscar por nombre o sigla..."
+              placeholderTextColor={colors.textSecondary || '#9CA3AF'}
+              style={[styles.searchInput, { color: colors.text }]}
+              autoFocus={true}
+            />
+            {searchObraSocial.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchObraSocial('')}>
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary || '#9CA3AF'} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Lista de obras sociales */}
+          {loadingObrasSociales ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.text }]}>Cargando obras sociales...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredObrasSociales}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.obraSocialItem, { borderBottomColor: colors.border }]}
+                  onPress={() => handleSelectObraSocial(item)}
+                >
+                  <View style={styles.obraSocialInfo}>
+                    <Text style={[styles.obraSocialNombre, { color: colors.text }]}>{item.nombre}</Text>
+                    {item.sigla && (
+                      <Text style={[styles.obraSocialSiglaList, { color: colors.primary }]}>{item.sigla}</Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary || '#9CA3AF'} />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="search-outline" size={48} color={colors.textSecondary || '#9CA3AF'} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary || '#9CA3AF' }]}>
+                    No se encontraron obras sociales
+                  </Text>
+                </View>
+              }
+              style={styles.obrasSocialesList}
+            />
+          )}
+
+          {/* Contador de resultados */}
+          {!loadingObrasSociales && (
+            <Text style={[styles.resultCount, { color: colors.textSecondary || '#9CA3AF' }]}>
+              {filteredObrasSociales.length} obras sociales encontradas
+            </Text>
+          )}
+        </View>
+      </View>
+    </Modal>
   );
 
   return (
@@ -152,7 +292,10 @@ export default function RegisterScreen({ navigation, route }) {
             {renderInput('Calle', 'calle', 'Nombre de la calle')}
             {renderInput('Número', 'numero', 'Número', 'numeric')}
             {renderInput('Ciudad', 'ciudad', 'Ciudad')}
-            {renderInput('Obra Social', 'idobrasocial', 'Nombre de la obra social')}
+            
+            {/* Selector de Obra Social */}
+            {renderObraSocialSelector()}
+            
             {renderInput('Número de Afiliado', 'numeroafiliado', 'Número de afiliado', 'numeric')}
 
             <View style={styles.buttonRow}>
@@ -173,6 +316,9 @@ export default function RegisterScreen({ navigation, route }) {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Modal de Obras Sociales */}
+      {renderObraSocialModal()}
     </View>
   );
 }
@@ -202,4 +348,107 @@ const styles = StyleSheet.create({
   secondaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12, borderWidth: 1, gap: 8 },
   secondaryButtonText: { fontSize: 16, fontWeight: '600' },
   buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  
+  // Estilos del selector de obra social
+  selectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  selectorText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  obraSocialSigla: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+
+  // Estilos del modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  obrasSocialesList: {
+    maxHeight: 400,
+  },
+  obraSocialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  obraSocialInfo: {
+    flex: 1,
+  },
+  obraSocialNombre: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  obraSocialSiglaList: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  resultCount: {
+    textAlign: 'center',
+    fontSize: 12,
+    paddingVertical: 12,
+  },
 });
