@@ -5,12 +5,97 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePatient } from '../contexts/PatientContext';
 import NavBar from '../components/NavBar';
 
+// Recetas de ejemplo para demo
+const DEMO_PRESCRIPTIONS = [
+  {
+    idreceta: 10458,
+    fechaemision: '2026-01-20T10:30:00',
+    medico_nombre_completo: 'García, Roberto Carlos',
+    matricprescr: '12458',
+    diagnostico: 'Faringitis aguda',
+    anulacionmotivo: null,
+    bloqueo: null,
+    medicamentos: [
+      {
+        nombre_comercial: 'Amoxicilina 500mg',
+        monodroga: 'Amoxicilina',
+        presentacion: 'Cápsulas x 21',
+        dosis: '1 cada 8 horas por 7 días'
+      },
+      {
+        nombre_comercial: 'Ibuprofeno 400mg',
+        monodroga: 'Ibuprofeno',
+        presentacion: 'Comprimidos x 20',
+        dosis: '1 cada 8 horas si hay dolor'
+      }
+    ]
+  },
+  {
+    idreceta: 10325,
+    fechaemision: '2026-01-15T14:45:00',
+    medico_nombre_completo: 'López, María Elena',
+    matricprescr: '8742',
+    diagnostico: 'Hipertensión arterial - Control',
+    anulacionmotivo: null,
+    bloqueo: null,
+    medicamentos: [
+      {
+        nombre_comercial: 'Losartán 50mg',
+        monodroga: 'Losartán potásico',
+        presentacion: 'Comprimidos x 30',
+        dosis: '1 por día en ayunas'
+      }
+    ]
+  },
+  {
+    idreceta: 10112,
+    fechaemision: '2026-01-08T09:15:00',
+    medico_nombre_completo: 'Fernández, Juan Pablo',
+    matricprescr: '15632',
+    diagnostico: 'Gastritis crónica',
+    anulacionmotivo: null,
+    bloqueo: null,
+    medicamentos: [
+      {
+        nombre_comercial: 'Omeprazol 20mg',
+        monodroga: 'Omeprazol',
+        presentacion: 'Cápsulas x 28',
+        dosis: '1 por día antes del desayuno'
+      },
+      {
+        nombre_comercial: 'Sucralfato 1g',
+        monodroga: 'Sucralfato',
+        presentacion: 'Sobres x 20',
+        dosis: '1 sobre antes de cada comida'
+      }
+    ]
+  },
+  {
+    idreceta: 9987,
+    fechaemision: '2025-12-20T11:00:00',
+    medico_nombre_completo: 'García, Roberto Carlos',
+    matricprescr: '12458',
+    diagnostico: 'Control de rutina - Vitaminas',
+    anulacionmotivo: 'Receta vencida',
+    bloqueo: null,
+    medicamentos: [
+      {
+        nombre_comercial: 'Vitamina D3 1000UI',
+        monodroga: 'Colecalciferol',
+        presentacion: 'Gotas x 20ml',
+        dosis: '10 gotas por día'
+      }
+    ]
+  }
+];
+
 export default function PrescriptionsScreen({ navigation }) {
   const { colors } = useTheme();
   const { patient } = usePatient();
   const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [usingDemo, setUsingDemo] = useState(false);
 
   useEffect(() => {
     if (patient?.dni) {
@@ -22,14 +107,20 @@ export default function PrescriptionsScreen({ navigation }) {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://luanna-toothy-seclusively.ngrok-free.app/app-pacientes-server/api/prescriptions/dni/${patient.dni}`
+        `https://api.recetasalud.ar/app-pacientes-server/api/prescriptions/dni/${patient.dni}`
       );
       const data = await response.json();
-      if (data.success) {
-        setPrescriptions(data.prescriptions || []);
+      if (data.success && data.prescriptions && data.prescriptions.length > 0) {
+        setPrescriptions(data.prescriptions);
+        setUsingDemo(false);
+      } else {
+        setPrescriptions(DEMO_PRESCRIPTIONS);
+        setUsingDemo(true);
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar las recetas');
+      console.log('Usando recetas de demostración');
+      setPrescriptions(DEMO_PRESCRIPTIONS);
+      setUsingDemo(true);
     } finally {
       setLoading(false);
     }
@@ -48,7 +139,7 @@ export default function PrescriptionsScreen({ navigation }) {
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
-      return new Date(dateString).toLocaleDateString('es-ES', {
+      return new Date(dateString).toLocaleDateString('es-AR', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -89,7 +180,7 @@ export default function PrescriptionsScreen({ navigation }) {
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Mis Recetas Médicas
           </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary || '#6B7280' }]}>
             Consulta tus recetas médicas digitales
           </Text>
         </View>
@@ -102,18 +193,28 @@ export default function PrescriptionsScreen({ navigation }) {
               <Text style={[styles.patientName, { color: colors.text }]}>
                 {patient.nombre} {patient.apellido}
               </Text>
-              <Text style={[styles.patientDni, { color: colors.textSecondary }]}>
+              <Text style={[styles.patientDni, { color: colors.textSecondary || '#6B7280' }]}>
                 DNI: {patient.dni}
               </Text>
             </View>
           </View>
         </View>
 
+        {/* Demo Banner */}
+        {usingDemo && (
+          <View style={[styles.demoBanner, { backgroundColor: '#EFF6FF' }]}>
+            <Ionicons name="information-circle" size={20} color="#3B82F6" />
+            <Text style={styles.demoBannerText}>
+              Mostrando recetas de ejemplo para demostración
+            </Text>
+          </View>
+        )}
+
         {/* Loading */}
         {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            <Text style={[styles.loadingText, { color: colors.textSecondary || '#6B7280' }]}>
               Cargando recetas...
             </Text>
           </View>
@@ -129,7 +230,7 @@ export default function PrescriptionsScreen({ navigation }) {
               const statusInfo = getStatusInfo(prescription);
               return (
                 <TouchableOpacity
-                  key={prescription.idreceta}
+                  key={prescription.idreceta || index}
                   style={[styles.prescriptionCard, { backgroundColor: colors.card }]}
                   onPress={() => setSelectedPrescription(prescription)}
                   activeOpacity={0.7}
@@ -147,30 +248,30 @@ export default function PrescriptionsScreen({ navigation }) {
                     </Text>
                     
                     <View style={styles.prescriptionDetail}>
-                      <Ionicons name="medical" size={16} color={colors.textSecondary} />
-                      <Text style={[styles.prescriptionText, { color: colors.textSecondary }]}>
+                      <Ionicons name="medical" size={16} color={colors.textSecondary || '#6B7280'} />
+                      <Text style={[styles.prescriptionText, { color: colors.textSecondary || '#6B7280' }]}>
                         {getMedicamentoInfo(prescription)}
                       </Text>
                     </View>
 
                     <View style={styles.prescriptionDetail}>
-                      <Ionicons name="person" size={16} color={colors.textSecondary} />
-                      <Text style={[styles.prescriptionText, { color: colors.textSecondary }]}>
+                      <Ionicons name="person" size={16} color={colors.textSecondary || '#6B7280'} />
+                      <Text style={[styles.prescriptionText, { color: colors.textSecondary || '#6B7280' }]}>
                         {prescription.medico_nombre_completo 
-                          ? `Dr. ${prescription.medico_nombre_completo}`
+                          ? `Dr/a. ${prescription.medico_nombre_completo}`
                           : `MP: ${prescription.matricprescr}`}
                       </Text>
                     </View>
 
                     <View style={styles.prescriptionDetail}>
-                      <Ionicons name="calendar" size={16} color={colors.textSecondary} />
-                      <Text style={[styles.prescriptionText, { color: colors.textSecondary }]}>
+                      <Ionicons name="calendar" size={16} color={colors.textSecondary || '#6B7280'} />
+                      <Text style={[styles.prescriptionText, { color: colors.textSecondary || '#6B7280' }]}>
                         {formatDate(prescription.fechaemision)}
                       </Text>
                     </View>
                   </View>
 
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary || '#6B7280'} />
                 </TouchableOpacity>
               );
             })}
@@ -181,12 +282,12 @@ export default function PrescriptionsScreen({ navigation }) {
         {!loading && prescriptions.length === 0 && (
           <View style={styles.emptyState}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.card }]}>
-              <Ionicons name="medical" size={48} color={colors.textSecondary} />
+              <Ionicons name="medical" size={48} color={colors.textSecondary || '#6B7280'} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
               No se encontraron recetas
             </Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary || '#6B7280' }]}>
               No hay recetas médicas registradas para este DNI
             </Text>
           </View>
@@ -217,7 +318,7 @@ export default function PrescriptionsScreen({ navigation }) {
               {selectedPrescription && (
                 <>
                   <View style={styles.modalSection}>
-                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                    <Text style={[styles.modalLabel, { color: colors.textSecondary || '#6B7280' }]}>
                       ID Receta
                     </Text>
                     <Text style={[styles.modalValue, { color: colors.text }]}>
@@ -226,7 +327,7 @@ export default function PrescriptionsScreen({ navigation }) {
                   </View>
 
                   <View style={styles.modalSection}>
-                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                    <Text style={[styles.modalLabel, { color: colors.textSecondary || '#6B7280' }]}>
                       Fecha de Emisión
                     </Text>
                     <Text style={[styles.modalValue, { color: colors.text }]}>
@@ -235,17 +336,31 @@ export default function PrescriptionsScreen({ navigation }) {
                   </View>
 
                   <View style={styles.modalSection}>
-                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-                      Estado
+                    <Text style={[styles.modalLabel, { color: colors.textSecondary || '#6B7280' }]}>
+                      Médico
                     </Text>
                     <Text style={[styles.modalValue, { color: colors.text }]}>
-                      {getStatusInfo(selectedPrescription).label}
+                      {selectedPrescription.medico_nombre_completo 
+                        ? `Dr/a. ${selectedPrescription.medico_nombre_completo}`
+                        : `MP: ${selectedPrescription.matricprescr}`}
                     </Text>
+                  </View>
+
+                  <View style={styles.modalSection}>
+                    <Text style={[styles.modalLabel, { color: colors.textSecondary || '#6B7280' }]}>
+                      Estado
+                    </Text>
+                    <View style={[styles.statusBadgeModal, { backgroundColor: getStatusInfo(selectedPrescription).bgColor }]}>
+                      <Ionicons name={getStatusInfo(selectedPrescription).icon} size={16} color={getStatusInfo(selectedPrescription).color} />
+                      <Text style={[styles.statusText, { color: getStatusInfo(selectedPrescription).color }]}>
+                        {getStatusInfo(selectedPrescription).label}
+                      </Text>
+                    </View>
                   </View>
 
                   {selectedPrescription.diagnostico && (
                     <View style={styles.modalSection}>
-                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary || '#6B7280' }]}>
                         Diagnóstico
                       </Text>
                       <Text style={[styles.modalValue, { color: colors.text }]}>
@@ -256,8 +371,8 @@ export default function PrescriptionsScreen({ navigation }) {
 
                   {selectedPrescription.medicamentos && selectedPrescription.medicamentos.length > 0 && (
                     <View style={styles.modalSection}>
-                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-                        Medicamentos
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary || '#6B7280' }]}>
+                        Medicamentos ({selectedPrescription.medicamentos.length})
                       </Text>
                       {selectedPrescription.medicamentos.map((med, idx) => (
                         <View key={idx} style={[styles.medicamentoCard, { backgroundColor: colors.background }]}>
@@ -265,12 +380,36 @@ export default function PrescriptionsScreen({ navigation }) {
                             {med.nombre_comercial || med.medicamento_completo}
                           </Text>
                           {med.monodroga && (
-                            <Text style={[styles.medicamentoDetail, { color: colors.textSecondary }]}>
-                              {med.monodroga}
+                            <Text style={[styles.medicamentoDetail, { color: colors.textSecondary || '#6B7280' }]}>
+                              Principio activo: {med.monodroga}
                             </Text>
+                          )}
+                          {med.presentacion && (
+                            <Text style={[styles.medicamentoDetail, { color: colors.textSecondary || '#6B7280' }]}>
+                              Presentación: {med.presentacion}
+                            </Text>
+                          )}
+                          {med.dosis && (
+                            <View style={styles.dosisContainer}>
+                              <Ionicons name="time-outline" size={14} color={colors.primary} />
+                              <Text style={[styles.dosisText, { color: colors.primary }]}>
+                                {med.dosis}
+                              </Text>
+                            </View>
                           )}
                         </View>
                       ))}
+                    </View>
+                  )}
+
+                  {selectedPrescription.anulacionmotivo && (
+                    <View style={[styles.modalSection, styles.anulacionSection]}>
+                      <Text style={[styles.modalLabel, { color: '#EF4444' }]}>
+                        Motivo de Anulación
+                      </Text>
+                      <Text style={[styles.modalValue, { color: '#EF4444' }]}>
+                        {selectedPrescription.anulacionmotivo}
+                      </Text>
                     </View>
                   )}
                 </>
@@ -323,7 +462,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 24,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -345,6 +484,20 @@ const styles = StyleSheet.create({
   },
   patientDni: {
     fontSize: 14,
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  demoBannerText: {
+    color: '#3B82F6',
+    fontSize: 14,
+    flex: 1,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -384,6 +537,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
+  },
+  statusBadgeModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+    alignSelf: 'flex-start',
   },
   statusText: {
     fontSize: 12,
@@ -438,7 +600,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -476,6 +638,25 @@ const styles = StyleSheet.create({
   },
   medicamentoDetail: {
     fontSize: 14,
+    marginTop: 2,
+  },
+  dosisContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  dosisText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  anulacionSection: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
   },
   modalButton: {
     marginHorizontal: 20,

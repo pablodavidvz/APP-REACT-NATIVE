@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePatient } from '../contexts/PatientContext';
 import patientService from '../services/patientService';
@@ -42,20 +43,17 @@ export default function ScannerScreen({ navigation }) {
     }
   };
 
-  // ✅ VERIFICAR SI EL PACIENTE YA EXISTE
   const checkIfPatientExists = async (patientData) => {
     setChecking(true);
     
     try {
       console.log('🔍 Verificando si el paciente existe...');
       
-      // Verificar por DNI de forma simple
       const response = await patientService.checkPatientByDNI(patientData.dni);
 
       setChecking(false);
 
       if (response.exists && response.patient) {
-        // ✅ PACIENTE YA EXISTE - INICIAR SESIÓN AUTOMÁTICAMENTE
         console.log('✅ Paciente encontrado, iniciando sesión...');
         
         await setPatient(response.patient);
@@ -74,7 +72,6 @@ export default function ScannerScreen({ navigation }) {
           ]
         );
       } else {
-        // ❌ PACIENTE NO EXISTE - IR AL REGISTRO
         console.log('❌ Paciente no encontrado, ir al registro');
         
         Alert.alert(
@@ -99,7 +96,6 @@ export default function ScannerScreen({ navigation }) {
       setChecking(false);
       console.error('❌ Error al verificar paciente:', error);
       
-      // Si hay error en la verificación, ir al registro
       Alert.alert(
         'DNI Escaneado',
         `Nombre: ${patientData.nombre} ${patientData.apellido}\nDNI: ${patientData.dni}`,
@@ -143,8 +139,12 @@ export default function ScannerScreen({ navigation }) {
       return;
     }
 
-    // ✅ VERIFICAR SI EL PACIENTE EXISTE
     checkIfPatientExists(patientData);
+  };
+
+  // Función para ir al registro manual
+  const handleManualRegister = () => {
+    navigation.navigate('Register', { scannedData: null });
   };
 
   if (!permission) {
@@ -158,15 +158,35 @@ export default function ScannerScreen({ navigation }) {
   if (!permission.granted) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.message, { color: colors.text }]}>
-          Necesitamos permiso para usar la cámara
-        </Text>
-        <TouchableOpacity
-          onPress={requestPermission}
-          style={[styles.button, { backgroundColor: colors.primary }]}
-        >
-          <Text style={styles.buttonText}>Conceder Permiso</Text>
-        </TouchableOpacity>
+        <View style={styles.permissionContainer}>
+          <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+            <Ionicons name="camera" size={48} color={colors.primary} />
+          </View>
+          <Text style={[styles.permissionTitle, { color: colors.text }]}>
+            Permiso de Cámara
+          </Text>
+          <Text style={[styles.permissionText, { color: colors.textSecondary || '#6B7280' }]}>
+            Necesitamos acceso a la cámara para escanear tu DNI
+          </Text>
+          <TouchableOpacity
+            onPress={requestPermission}
+            style={[styles.permissionButton, { backgroundColor: colors.primary }]}
+          >
+            <Ionicons name="camera" size={20} color="#fff" />
+            <Text style={styles.permissionButtonText}>Conceder Permiso</Text>
+          </TouchableOpacity>
+          
+          {/* Botón de registro manual */}
+          <TouchableOpacity
+            onPress={handleManualRegister}
+            style={[styles.manualButton, { borderColor: colors.primary }]}
+          >
+            <Ionicons name="create-outline" size={20} color={colors.primary} />
+            <Text style={[styles.manualButtonText, { color: colors.primary }]}>
+              Registrarse sin escanear
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -182,12 +202,26 @@ export default function ScannerScreen({ navigation }) {
         }}
       >
         <View style={styles.overlay}>
+          {/* Header */}
+          <View style={styles.headerOverlay}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Escanear DNI</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          {/* Scan Area */}
           <View style={styles.scanArea}>
             <View style={[styles.corner, styles.topLeft]} />
             <View style={[styles.corner, styles.topRight]} />
             <View style={[styles.corner, styles.bottomLeft]} />
             <View style={[styles.corner, styles.bottomRight]} />
           </View>
+          
           <Text style={styles.instructions}>
             Coloque el código de barras del DNI dentro del marco
           </Text>
@@ -198,6 +232,17 @@ export default function ScannerScreen({ navigation }) {
               <Text style={styles.checkingText}>Verificando paciente...</Text>
             </View>
           )}
+
+          {/* Bottom Actions */}
+          <View style={styles.bottomActions}>
+            <TouchableOpacity
+              style={styles.manualRegisterButton}
+              onPress={handleManualRegister}
+            >
+              <Ionicons name="create-outline" size={24} color="#fff" />
+              <Text style={styles.manualRegisterText}>Ingresar datos manualmente</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </CameraView>
 
@@ -206,6 +251,7 @@ export default function ScannerScreen({ navigation }) {
           style={[styles.rescanButton, { backgroundColor: colors.primary }]}
           onPress={() => setScanned(false)}
         >
+          <Ionicons name="refresh" size={20} color="#fff" />
           <Text style={styles.buttonText}>Escanear Nuevamente</Text>
         </TouchableOpacity>
       )}
@@ -225,9 +271,32 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerOverlay: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
   },
   scanArea: {
     width: 300,
@@ -269,8 +338,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
-    marginTop: 20,
-    paddingHorizontal: 20,
+    marginTop: 24,
+    paddingHorizontal: 40,
   },
   checkingContainer: {
     marginTop: 30,
@@ -281,25 +350,89 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
   },
-  message: {
-    textAlign: 'center',
-    paddingBottom: 20,
-    fontSize: 16,
+  bottomActions: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
-  button: {
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
+  manualRegisterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 10,
   },
-  buttonText: {
+  manualRegisterText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '500',
+  },
+  permissionContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  permissionTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  permissionText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  permissionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    gap: 10,
+    marginBottom: 16,
+  },
+  permissionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  manualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 10,
+  },
+  manualButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   rescanButton: {
     position: 'absolute',
     bottom: 40,
-    padding: 15,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

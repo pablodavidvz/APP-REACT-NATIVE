@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL base de la API - IP LOCAL
-const API_URL = 'http://192.168.0.8:8000/app-pacientes-server/api';
+const API_URL = 'https://api.recetasalud.ar/app-pacientes-server/api';
 
 // Configuración de axios
 const API = axios.create({
